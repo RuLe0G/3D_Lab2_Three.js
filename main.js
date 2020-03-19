@@ -1,6 +1,7 @@
 var container; 
 var scene, camera, render;
 var keyboard;
+var moon;
 
 var clock = new THREE.Clock();
 var planets;
@@ -45,19 +46,23 @@ function init()  {
      window.addEventListener( 'resize', onWindowResize, false ); 
 
 
-    addSphere(1500,new THREE.Vector3(0,0,0),0,"imgs/starmap.jpg", 0,planets[0]) //star
-    addSphere(69.6,new THREE.Vector3(0,0,0),0,"imgs/sunmapY.jpg", 0,planets[0]) //Sun
-    addSphere(2.4,new THREE.Vector3(69.6+58,0,0),    4.8/10.0 ,"imgs/Planets/mercury/mercurymap.jpg",1,planets[0]) //mercury
-    addSphere(6,new THREE.Vector3(69.6+108,0,0),     3.5/10.0 ,"imgs/Planets/venus/venusmap.jpg",1,planets[0]) //venus  
-    addSphere(6.3,new THREE.Vector3(69.6+149,0,0),   3/10.0   ,"imgs/Planets/earth/earthmap1k.jpg", 1,planets[0]) //earth
-    addSphere(3.4,new THREE.Vector3(69.6+228,0,0),   2.4/10.0 ,"imgs/Planets/mars/mars_1k_color.jpg",1,planets[0]) //mars    
-    addSphere(1.7,new THREE.Vector3(69.6+120,6,0,0), 3/10.0   ,"imgs/Planets/earth/moon/moonmap1k.jpg", 1, planets[4]) //moon
+    planets.push(addSphere(1500,new THREE.Vector3(0,0,0),0,"imgs/starmap.jpg", 0,planets[0])) //star
+    planets.push(addSphere(69.6,new THREE.Vector3(0,0,0),0,"imgs/sunmapY.jpg", 0,planets[0])) //Sun
+    planets.push(addSphere(2.4,new THREE.Vector3(69.6+58,0,0),    4.8/10.0 ,"imgs/Planets/mercury/mercurymap.jpg",1,planets[0])) //mercury
+    planets.push(addSphere(6,new THREE.Vector3(69.6+108,0,0),     3.5/10.0 ,"imgs/Planets/earth/earthmap1k.jpg",1,planets[0])) //venus  
+    planets.push(addSphere(6.3,new THREE.Vector3(69.6+149,0,0),   3/10.0   ,"imgs/Planets/venus/venusmap.jpg", 1,planets[0])) //earth
+    planets.push(addSphere(3.4,new THREE.Vector3(69.6+228,0,0),   2.4/10.0 ,"imgs/Planets/mars/mars_1k_color.jpg",1,planets[0])) //mars    
+     //moon
     for (var i = 1; i < planets.length; i++){ 
+    scene.add(planets[i].model)
     draw(planets[i]);
     }
-
-  
+    moon = addSphere(1.7,new THREE.Vector3(69.6+12,6,0,0), 3/10.0   ,"imgs/Planets/earth/moon/moonmap1k.jpg", 1, planets[4]);
+    scene.add(moon.model)
 }
+
+
+
     
 function onWindowResize()  {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -65,11 +70,39 @@ function onWindowResize()  {
     renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
+
+
 function animate()  {
-    delta = clock.getDelta(); 
+    var t = 0; 
+    delta = clock.getDelta();     
+    t+=delta/50.0;
     for (var i = 1; i < planets.length; i++){ 
         movement(planets[i]);        
     }
+
+
+    //.......... ЛУНА
+
+    var mm = new THREE.Matrix4(); 
+    var mm1 = new THREE.Matrix4(); 
+    var mm2 = new THREE.Matrix4();
+
+    mm1.makeRotationY( 100 * t ); 
+    mm2.setPosition(new THREE.Vector3(15, 0, 0));
+    mm.multiplyMatrices( mm1, mm2 );
+
+    mm.multiplyMatrices( mm, mm1 );
+    
+    mm2.copyPosition(planets[3].model.matrix);
+    
+    mm.multiplyMatrices( mm2, mm );
+
+    moon.model.matrix = mm; 
+    moon.model.matrixAutoUpdate = false;
+
+    //.......... КАМЕРА
+
+
     if (keyboard.pressed("Q")) 
     { 
         camA+=0.025;
@@ -144,29 +177,16 @@ function render()  {
 
 function movement(planet){
 
-
-
-    var m = new THREE.Matrix4();
-    var m1 = new THREE.Matrix4();
+    var m = new THREE.Matrix4(); 
+    var m1 = new THREE.Matrix4(); 
     var m2 = new THREE.Matrix4();
-
-
-    //var x = (planet.x + planet.child.model.position.x) * Math.cos(i*planet.v/10) ;
-    //var z = (planet.x + planet.child.model.position.z) * Math.sin(i*planet.v/10);
-
     planet.a += planet.v * delta;
-        
-    //i+=0.01;
 
-   // var x = planet.x * Math.cos();
-   // var z = planet.x * Math.sin();
-    m1.makeRotationY( planet.a );
+    m1.makeRotationY( planet.a ); 
     m2.setPosition(new THREE.Vector3(planet.x, 0, 0));
-     
-    //m.makeRotationAxis( axis, amgle ); 
-    m.multiplyMatrices( m1, m2 ); 
+      
+    m.multiplyMatrices( m1, m2 );
     m.multiplyMatrices( m, m1 ); 
-
     planet.model.matrix = m; 
     planet.model.matrixAutoUpdate = false; 
 }
@@ -186,7 +206,7 @@ function addSphere(r, pos, v, texPath, ang, planetG){
 
     var sphere = new THREE.Mesh(geometry, material)
     sphere.position.copy(pos);
-    scene.add(sphere);
+    
 
     var planet = {}
     planet.model = sphere;
@@ -196,7 +216,7 @@ function addSphere(r, pos, v, texPath, ang, planetG){
     planet.child = planetG;
     planet.r = r;
 
-    planets.push(planet);
+    return planet;
 }
 
 function draw(planet){
@@ -206,10 +226,10 @@ function draw(planet){
  
     for (var i = 0; i<360; i++ )
     {
-        var x = planet.model.position.x*Math.cos(i*Math.PI/180);
-        var z = planet.model.position.x*Math.sin(i*Math.PI/180);
+        var x = planet.model.position.x*Math.cos(i/10);
+        var z = planet.model.position.x*Math.sin(i/10);
 
-        vertArray.push(new THREE.Vector3(x+ planet.child.model.position.x,0,z+ planet.child.model.position.x))
+        vertArray.push(new THREE.Vector3(x,0,z))
     }
 
     var lineMaterial = new THREE.LineDashedMaterial( {
@@ -219,4 +239,5 @@ function draw(planet){
     var line = new THREE.Line( lineGeometry, lineMaterial );
      line.computeLineDistances();
       scene.add(line);
+
 }
